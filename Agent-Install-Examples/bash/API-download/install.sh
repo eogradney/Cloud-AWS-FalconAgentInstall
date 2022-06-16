@@ -90,11 +90,11 @@ cs_sensor_download() {
                 done
             fi
 
-                  if [ "$l" = "$cs_os_version" ]; then
+	          if [ "$l" = "$cs_os_version" ]; then
                 found=1
                 break
             fi
-                  INDEX=$((INDEX+1))
+	          INDEX=$((INDEX+1))
         done
         if [ $found = 0 ]; then
             die "Unable to locate matching sensor: $cs_os_name@$cs_os_version"
@@ -352,7 +352,7 @@ cs_os_version=$(
 )
 
 aws_my_region=$(
-     curl -H "X-aws-ec2-metadata-token: $MTOKEN" -v http://169.254.169.254/latest/meta-data/placement/availability-zone | sed s/.$//
+         curl -H "X-aws-ec2-metadata-token: $MTOKEN" -v http://169.254.169.254/latest/meta-data/placement/availability-zone | sed s/.$//
 )
 
 cs_falcon_client_id=$(
