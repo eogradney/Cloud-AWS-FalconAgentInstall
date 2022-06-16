@@ -5,12 +5,9 @@
 print_usage() {
     cat <<EOF
 Script to install and set-up CrowdStrike Falcon sensor from AWS SSM.
-
 This script shall be issued automatically by amazon-ssm-agent. No arguments required.
-
 Falcon credentials are needed to download falcon sensor. These may be supplied by
 the way of env variables or in AWS SSM Parameter Store. Following variables may be used.
-
     - FalconCID
     - CS_API_GATEWAY_CLIENT_ID
     - CS_API_GATEWAY_CLIENT_SECRET
@@ -19,6 +16,7 @@ EOF
 
 
 CS_API_BASE=${CS_API_BASE:-api.crowdstrike.com}
+MTOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`
 
 main() {
     if [ -n "$1" ]; then
@@ -92,11 +90,11 @@ cs_sensor_download() {
                 done
             fi
 
-	          if [ "$l" = "$cs_os_version" ]; then
+                  if [ "$l" = "$cs_os_version" ]; then
                 found=1
                 break
             fi
-	          INDEX=$((INDEX+1))
+                  INDEX=$((INDEX+1))
         done
         if [ $found = 0 ]; then
             die "Unable to locate matching sensor: $cs_os_name@$cs_os_version"
@@ -172,8 +170,8 @@ aws_ssm_parameter() {
     }
 
     api_endpoint="AmazonSSM.GetParameters"
-    iam_role="$(curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/)"
-    _security_credentials=$(curl -s "http://169.254.169.254/latest/meta-data/iam/security-credentials/$iam_role")
+    iam_role=`curl -H "X-aws-ec2-metadata-token: $MTOKEN" -v http://169.254.169.254/latest/meta-data/iam/security-credentials`
+    _security_credentials=`curl -H "X-aws-ec2-metadata-token: $MTOKEN" -v http://169.254.169.254/latest/meta-data/iam/security-credentials/$iam_role`
     access_key_id="$(echo "$_security_credentials" | grep AccessKeyId | sed -e 's/  "AccessKeyId" : "//' -e 's/",$//')"
     access_key_secret="$(echo "$_security_credentials" | grep SecretAccessKey | sed -e 's/  "SecretAccessKey" : "//' -e 's/",$//')"
     security_token="$(echo "$_security_credentials" | grep Token | sed -e 's/  "Token" : "//' -e 's/",$//')"
@@ -185,13 +183,11 @@ aws_ssm_parameter() {
         cat <<EOF | head -c -1 | openssl dgst -sha256 | awk -F' ' '{print $2}'
 POST
 /
-
 content-type:application/x-amz-json-1.1
 host:ssm.${aws_my_region}.amazonaws.com
 x-amz-date:$datetime
 x-amz-security-token:$security_token
 x-amz-target:$api_endpoint
-
 content-type;host;x-amz-date;x-amz-security-token;x-amz-target
 $request_data_dgst
 EOF
@@ -246,7 +242,6 @@ cs_falcon_gpg_import() {
     cat > "$tempfile" <<EOF
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: GnuPG v2.0.22 (GNU/Linux)
-
 mQINBFrr4SsBEADCU68CyJai1Sxt4kzu4qJwhKjI3x2wjuIXwk+QzUPZHEm9GzUR
 70M8lLdmcuGfHqnP5H/Qglj06NoBg8hXJRGS+1bCjEkKmdUfOgC781fA6NtlcTZE
 DpKVa3Ico8wWXUQ1VlENwX/An40r0LmJbCut7Xv8mWyBz5unk1Z1d2r3M9BECaNW
@@ -318,7 +313,6 @@ os_name=$(
     if [ -z "$name" ]; then
         die "Cannot recognise operating system"
     fi
-
     echo $name
 )
 
@@ -358,7 +352,7 @@ cs_os_version=$(
 )
 
 aws_my_region=$(
-    curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed s/.$//
+     curl -H "X-aws-ec2-metadata-token: $MTOKEN" -v http://169.254.169.254/latest/meta-data/placement/availability-zone | sed s/.$//
 )
 
 cs_falcon_client_id=$(
